@@ -20,9 +20,9 @@ jobs:
           cat > /tmp/run.py << 'PYEOF'
           import json, re, urllib.request, os
           from youtube_transcript_api import YouTubeTranscriptApi
-          url = os.environ["VIDEO_URL"]
-          gist_id = os.environ["GIST_ID"]
-          token = os.environ["GIST_TOKEN"]
+          url = os.environ["VIDEO_URL"].strip()
+          gist_id = os.environ["GIST_ID"].strip()
+          token = os.environ["GIST_TOKEN"].strip()
           match = re.search(r"(?:v=|youtu\.be/)([A-Za-z0-9_-]{11})", url)
           video_id = match.group(1) if match else None
           try:
