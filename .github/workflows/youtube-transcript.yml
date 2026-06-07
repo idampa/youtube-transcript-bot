@@ -1,57 +1,53 @@
 name: YouTube Transcript
- 
+
 on:
   repository_dispatch:
     types: [get-transcript]
- 
+
 jobs:
   transcript:
     runs-on: ubuntu-latest
     steps:
       - name: Install deps
         run: pip install "youtube-transcript-api>=1.0.0"
- 
+
       - name: Get transcript and save to Gist
         env:
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
           VIDEO_URL: ${{ github.event.client_payload.url }}
           GIST_ID: ${{ github.event.client_payload.gist_id }}
         run: |
-          python3 -c "
-import json, re, urllib.request, os
-from youtube_transcript_api import YouTubeTranscriptApi
- 
-url = os.environ['VIDEO_URL']
-gist_id = os.environ['GIST_ID']
-token = os.environ['GIST_TOKEN']
- 
-match = re.search(r'(?:v=|youtu\\.be/)([A-Za-z0-9_-]{11})', url)
-video_id = match.group(1) if match else None
- 
-try:
-    ytt = YouTubeTranscriptApi()
-    try:
-        fetched = ytt.fetch(video_id, languages=['ko', 'ko-KR'])
-    except Exception:
-        try:
-            fetched = ytt.fetch(video_id, languages=['en'])
-        except Exception:
-            fetched = ytt.fetch(video_id)
-    snippets = list(fetched)
-    text = ' '.join(s.text if hasattr(s, 'text') else s['text'] for s in snippets)
-    result = {'transcript': text, 'video_id': video_id, 'status': 'done'}
-except Exception as e:
-    result = {'error': str(e), 'status': 'error'}
- 
-content = json.dumps(result, ensure_ascii=False)
-payload = json.dumps({'files': {'transcript.json': {'content': content}}}).encode()
-req = urllib.request.Request(
-    f'https://api.github.com/gists/{gist_id}',
-    data=payload,
-    headers={'Authorization': f'token {token}', 'Content-Type': 'application/json', 'User-Agent': 'GHA'},
-    method='PATCH'
-)
-with urllib.request.urlopen(req) as r:
-    print('Gist 저장 완료:', r.status)
-"
- 
+          cat > /tmp/run.py << 'PYEOF'
+          import json, re, urllib.request, os
+          from youtube_transcript_api import YouTubeTranscriptApi
+          url = os.environ["VIDEO_URL"]
+          gist_id = os.environ["GIST_ID"]
+          token = os.environ["GIST_TOKEN"]
+          match = re.search(r"(?:v=|youtu\.be/)([A-Za-z0-9_-]{11})", url)
+          video_id = match.group(1) if match else None
+          try:
+              ytt = YouTubeTranscriptApi()
+              try:
+                  fetched = ytt.fetch(video_id, languages=["ko", "ko-KR"])
+              except Exception:
+                  try:
+                      fetched = ytt.fetch(video_id, languages=["en"])
+                  except Exception:
+                      fetched = ytt.fetch(video_id)
+              snippets = list(fetched)
+              text = " ".join(s.text if hasattr(s, "text") else s["text"] for s in snippets)
+              result = {"transcript": text, "video_id": video_id, "status": "done"}
+          except Exception as e:
+              result = {"error": str(e), "status": "error"}
+          content = json.dumps(result, ensure_ascii=False)
+          payload = json.dumps({"files": {"transcript.json": {"content": content}}}).encode()
+          req = urllib.request.Request(
+              f"https://api.github.com/gists/{gist_id}",
+              data=payload,
+              headers={"Authorization": f"token {token}", "Content-Type": "application/json", "User-Agent": "GHA"},
+              method="PATCH"
+          )
+          with urllib.request.urlopen(req) as r:
+              print("Done:", r.status)
+          PYEOF
+          python3 /tmp/run.py
